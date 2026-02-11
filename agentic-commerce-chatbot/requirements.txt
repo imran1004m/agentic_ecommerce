@@ -1,0 +1,31 @@
+# Core Python
+python-dotenv
+
+# LLM & embeddings
+openai
+
+# Vector search
+faiss-cpu
+numpy
+
+# Backend API
+fastapi
+uvicorn
+
+# Agent orchestration
+langchain
+langgraph
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Frontend UI
+streamlit
+
+# OCR (optional – install only if needed)
+pytesseract
+Pillow
+
+# Utilities
+requests
