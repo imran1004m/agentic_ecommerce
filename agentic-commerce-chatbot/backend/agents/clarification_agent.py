@@ -1,7 +1,4 @@
 def clarification_agent(state):
-    """
-    Triggered when multiple similar products found.
-    """
 
     results = state.get("results")
 
@@ -9,12 +6,15 @@ def clarification_agent(state):
         state["response"] = "I couldn’t find matching products."
         return state
 
-    product_names = [r[1] for r in results]
+    # Store options for next turn
+    state["clarification_options"] = results
 
     message = "Did you mean:\n"
 
-    for name in product_names:
-        message += f"- {name}\n"
+    for idx, row in enumerate(results, start=1):
+        message += f"{idx}. {row[1]}\n"
+
+    message += "\nPlease reply with the option number."
 
     state["response"] = message
     return state

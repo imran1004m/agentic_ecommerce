@@ -1,79 +1,113 @@
 from langgraph.graph import StateGraph, END
-from backend.agents.state import AgentState
 
+from backend.agents.state import AgentState
 from backend.agents.intent_agent import detect_intent
 from backend.agents.product_search_agent import product_search_agent
-from backend.agents.cart_agent import cart_agent
 from backend.agents.clarification_agent import clarification_agent
+from backend.agents.selection_agent import selection_agent
+from backend.agents.cart_agent import cart_agent
+from backend.agents.remove_agent import remove_agent
 from backend.agents.order_agent import order_agent
 from backend.agents.view_cart_agent import view_cart_agent
 
 
 def build_graph():
 
-    workflow = StateGraph(AgentState)
+    graph = StateGraph(AgentState)
 
-    # -------------------------
-    # Add Nodes
-    # -------------------------
+    # 🔹 Nodes
+    graph.add_node("intent", detect_intent)
+    graph.add_node("search", product_search_agent)
+    graph.add_node("clarify", clarification_agent)
+    graph.add_node("select", selection_agent)
+    graph.add_node("cart", cart_agent)
+    graph.add_node("remove", remove_agent)
+    graph.add_node("view_cart", view_cart_agent)
+    graph.add_node("order", order_agent)
 
-    workflow.add_node("intent", detect_intent)
-    workflow.add_node("search", product_search_agent)
-    workflow.add_node("cart", cart_agent)
-    workflow.add_node("clarify", clarification_agent)
-    workflow.add_node("order", order_agent)
-    workflow.add_node("view_cart", view_cart_agent)
+    # 🔹 Entry Point
+    graph.set_entry_point("intent")
 
-    workflow.set_entry_point("intent")
+    # ===============================
+    # 🔥 Intent Routing
+    # ===============================
 
-    # -------------------------
-    # Routing From Intent
-    # -------------------------
-
-    def route_from_intent(state):
+    def route_intent(state):
 
         intent = state.get("intent")
 
-        if intent == "search_product":
+        if intent in ["search_product", "add_to_cart", "remove_from_cart"]:
             return "search"
-
-        if intent == "add_to_cart":
-            return "search"  # search first, then cart
-
-        if intent == "place_order":
-            return "order"
 
         if intent == "view_cart":
             return "view_cart"
 
-        return "search"
+        if intent == "place_order":
+            return "order"
 
-    workflow.add_conditional_edges("intent", route_from_intent)
+        if intent == "select_option":
+            return "select"
 
-    # -------------------------
-    # Routing After Search
-    # -------------------------
+        # small_talk or unknown → end
+        return END
 
-    def route_after_search(state):
+    graph.add_conditional_edges("intent", route_intent)
 
+    # ===============================
+    # 🔥 After Search Routing
+    # ===============================
+
+    def route_search(state):
+
+        # If clarification required
         if state.get("intent") == "clarify":
             return "clarify"
 
-        if state.get("intent") == "add_to_cart":
+        # Add flow
+        if state.get("intent") == "add_to_cart" and state.get("results"):
             return "cart"
 
-        # Normal search ends here
+        # Remove flow
+        if state.get("intent") == "remove_from_cart" and state.get("results"):
+            return "remove"
+
         return END
 
-    workflow.add_conditional_edges("search", route_after_search)
+    graph.add_conditional_edges("search", route_search)
 
-    # -------------------------
-    # Finish Points
-    # -------------------------
+    # ===============================
+    # 🔥 Clarification → END
+    # (Wait for user selection)
+    # ===============================
 
-    workflow.add_edge("clarify", END)
-    workflow.add_edge("cart", END)
-    workflow.add_edge("order", END)
-    workflow.add_edge("view_cart", END)
+    graph.add_edge("clarify", END)
 
-    return workflow.compile()
+    # ===============================
+    # 🔥 Selection Routing
+    # Directly route to cart/remove
+    # ===============================
+
+    def route_selection(state):
+
+        intent = state.get("intent")
+
+        if intent == "add_to_cart":
+            return "cart"
+
+        if intent == "remove_from_cart":
+            return "remove"
+
+        return END
+
+    graph.add_conditional_edges("select", route_selection)
+
+    # ===============================
+    # 🔥 Terminal Nodes
+    # ===============================
+
+    graph.add_edge("cart", END)
+    graph.add_edge("remove", END)
+    graph.add_edge("view_cart", END)
+    graph.add_edge("order", END)
+
+    return graph.compile()
