@@ -10,64 +10,55 @@ def product_search_agent(state):
         db,
         query=state["user_input"],
         available_only=True,
-        top_k=5
+        top_k=10
     )
 
     db.close()
 
     if not results:
-        state["response"] = "No matching products found."
+        state["response"] = "I couldn’t find matching products."
         return state
 
     query_lower = state["user_input"].lower()
 
-    # 🔥 1️⃣ Exact keyword containment boost (true hybrid behavior)
-    exact_matches = [
+    # =====================================================
+    # 🔥 1️⃣ BRAND FILTERING (NEW FIX)
+    # =====================================================
+
+    brand_filtered = [
         row for row in results
-        if any(word in row[1].lower() for word in query_lower.split())
+        if row[3].lower() in query_lower   # row[3] = brand
     ]
 
-    if exact_matches:
-        # Take best exact match
-        state["results"] = [exact_matches[0]]
+    if brand_filtered:
+        results = brand_filtered
+
+    # =====================================================
+    # 🔥 2️⃣ Pure Search Intent → Show All
+    # =====================================================
+
+    if state.get("intent") == "search_product":
+
+        product_list = "\n".join(
+            [f"- {row[1]} ({row[4]}) – ₹{row[5]}" for row in results]
+        )
+
+        state["response"] = f"Here are the available options:\n{product_list}"
         return state
 
-    # 🔥 2️⃣ Semantic filtering (fallback)
+    # =====================================================
+    # 🔥 3️⃣ Add / Remove Flow
+    # =====================================================
 
-    best_distance = results[0][-1]
+    state["results"] = results
 
-    # Hard rejection threshold
-    MAX_ALLOWED_DISTANCE = 1.15
-
-    if best_distance > MAX_ALLOWED_DISTANCE:
-        state["response"] = "Sorry, we couldn't find that product."
+    # If only one product after brand filtering → no clarification
+    if len(results) == 1:
         return state
 
-    # Adaptive tolerance
-    tolerance = 0.25
+    # Multiple remaining → clarification
+    state["original_intent"] = state.get("intent")
+    state["intent"] = "clarify"
+    state["clarification_options"] = results
 
-    strong_matches = [
-        row for row in results
-        if row[-1] <= best_distance + tolerance
-    ]
-
-    # Debug
-    for row in strong_matches:
-        print("Accepted Distance:", row[-1])
-
-    if not strong_matches:
-        state["response"] = "No closely matching products found."
-        return state
-
-    state["results"] = strong_matches
-
-    # 🔥 3️⃣ Clarification logic
-
-    if len(strong_matches) > 1:
-        state["original_intent"] = state.get("intent")
-        state["intent"] = "clarify"
-        state["clarification_options"] = strong_matches
-        return state
-
-    # 🔥 4️⃣ Single match
     return state

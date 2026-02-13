@@ -1,4 +1,3 @@
-from backend.core.llm_client import chat_completion
 import re
 
 
@@ -50,10 +49,8 @@ def detect_intent(state):
         state["quantity_mode"] = "increment"
 
     # =====================================================
-    # 4️⃣ STRONG Quantity + Unit Extraction (FINAL FIX)
+    # 4️⃣ Quantity + Unit Extraction
     # =====================================================
-
-    # Match number + unit (e.g., 6kg, 6 kg, 6ltr, 6 packets)
     quantity_unit_match = re.search(
         r'(\d+)\s*(kg|kgs|kilogram|kilograms|'
         r'l|ltr|litre|litres|liter|liters|'
@@ -78,7 +75,6 @@ def detect_intent(state):
             state["requested_unit"] = None
 
     else:
-        # Fallback: number only (e.g., "add 5 milk")
         quantity_only_match = re.search(r'\b(\d+)\b', user_input)
 
         if quantity_only_match:
@@ -89,36 +85,37 @@ def detect_intent(state):
         state["requested_unit"] = None
 
     # =====================================================
-    # 5️⃣ LLM Intent Classification
+    # 5️⃣ RULE-BASED INTENT DETECTION (ORDER MATTERS)
     # =====================================================
-    prompt = """
-You are an ecommerce intent classifier.
 
-Strictly classify the user input into exactly ONE of these labels:
+    # 🔴 Order is critical here
 
-- search_product
-- add_to_cart
-- remove_from_cart
-- place_order
-- track_order
-- view_cart
-- unknown
+        # =====================================================
+    # 5️⃣ RULE-BASED INTENT DETECTION (FINAL FIX)
+    # =====================================================
 
-Rules:
-- If user says "remove", "delete", "reduce" → remove_from_cart
-- If user says "show cart", "view cart" → view_cart
-- If user says "place order", "checkout" → place_order
-- If user says "add", "put in cart" → add_to_cart
-- If asking product info → search_product
+    # ADD
+    if any(word in user_input for word in ["add", "buy", "purchase"]):
+        state["intent"] = "add_to_cart"
 
-Return ONLY the label.
-"""
+    # REMOVE
+    elif any(word in user_input for word in ["remove", "delete", "reduce"]):
+        state["intent"] = "remove_from_cart"
 
-    intent = chat_completion(prompt, state["user_input"]).strip().lower()
+    # VIEW CART
+    elif any(phrase in user_input for phrase in ["show cart", "view cart"]):
+        state["intent"] = "view_cart"
 
-    if intent not in VALID_INTENTS:
-        intent = "unknown"
+    # 🔥 PLACE ORDER (STRONG FIX)
+    elif any(phrase in user_input for phrase in ["place order", "place the order", "checkout", "confirm order"]):
+        state["intent"] = "place_order"
 
-    state["intent"] = intent
+    # 🔥 SEARCH / SHOW PRODUCTS
+    elif any(word in user_input for word in ["show", "list", "display", "available", "brand"]):
+        state["intent"] = "search_product"
+
+    else:
+        state["intent"] = "search_product"
+
 
     return state
