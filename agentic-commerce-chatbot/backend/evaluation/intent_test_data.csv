@@ -1,0 +1,7 @@
+query,true_intent
+add 5kg rice,add_to_cart
+show milk brands,search_product
+remove 2kg flour,remove_from_cart
+view cart,view_cart
+checkout,place_order
+hello,small_talk

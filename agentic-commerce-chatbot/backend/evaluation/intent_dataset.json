@@ -1,0 +1,8 @@
+[
+  {"text": "hi", "label": "small_talk"},
+  {"text": "add 5kg rice", "label": "add_to_cart"},
+  {"text": "remove milk", "label": "remove_from_cart"},
+  {"text": "show milk brands", "label": "search_product"},
+  {"text": "show cart", "label": "view_cart"},
+  {"text": "checkout", "label": "place_order"}
+]

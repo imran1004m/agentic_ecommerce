@@ -15,6 +15,13 @@ def product_search_agent(state):
 
     db.close()
 
+    # 🔥 Always reset results
+    state["results"] = []
+
+    # =====================================================
+    # 1️⃣ No Results
+    # =====================================================
+
     if not results:
         state["response"] = "I couldn’t find matching products."
         return state
@@ -22,19 +29,19 @@ def product_search_agent(state):
     query_lower = state["user_input"].lower()
 
     # =====================================================
-    # 🔥 1️⃣ BRAND FILTERING (NEW FIX)
+    # 2️⃣ BRAND FILTERING
     # =====================================================
 
     brand_filtered = [
         row for row in results
-        if row[3].lower() in query_lower   # row[3] = brand
+        if row[3].lower() in query_lower
     ]
 
     if brand_filtered:
         results = brand_filtered
 
     # =====================================================
-    # 🔥 2️⃣ Pure Search Intent → Show All
+    # 3️⃣ PURE SEARCH INTENT → SHOW LIST
     # =====================================================
 
     if state.get("intent") == "search_product":
@@ -47,16 +54,16 @@ def product_search_agent(state):
         return state
 
     # =====================================================
-    # 🔥 3️⃣ Add / Remove Flow
+    # 4️⃣ ADD / REMOVE FLOW
     # =====================================================
 
     state["results"] = results
 
-    # If only one product after brand filtering → no clarification
+    # If only one product → skip clarification
     if len(results) == 1:
         return state
 
-    # Multiple remaining → clarification
+    # Multiple results → clarification
     state["original_intent"] = state.get("intent")
     state["intent"] = "clarify"
     state["clarification_options"] = results

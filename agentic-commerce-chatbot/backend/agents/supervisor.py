@@ -48,7 +48,6 @@ def build_graph():
         if intent == "select_option":
             return "select"
 
-        # small_talk or unknown → end
         return END
 
     graph.add_conditional_edges("intent", route_intent)
@@ -59,16 +58,18 @@ def build_graph():
 
     def route_search(state):
 
-        # If clarification required
+        # Clarification flow
         if state.get("intent") == "clarify":
             return "clarify"
 
-        # Add flow
-        if state.get("intent") == "add_to_cart" and state.get("results"):
+        # 🔥 HARD GUARD: No results → stop
+        if not state.get("results"):
+            return END
+
+        if state.get("intent") == "add_to_cart":
             return "cart"
 
-        # Remove flow
-        if state.get("intent") == "remove_from_cart" and state.get("results"):
+        if state.get("intent") == "remove_from_cart":
             return "remove"
 
         return END
@@ -77,14 +78,12 @@ def build_graph():
 
     # ===============================
     # 🔥 Clarification → END
-    # (Wait for user selection)
     # ===============================
 
     graph.add_edge("clarify", END)
 
     # ===============================
     # 🔥 Selection Routing
-    # Directly route to cart/remove
     # ===============================
 
     def route_selection(state):
